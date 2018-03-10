@@ -20,7 +20,7 @@ double timer() {
 
     //printf("Time: %f\n", getWallTime()-start);
 
-   }  while ((getWallTime() - start) < 4);
+   }  while ((getWallTime() - start) < 2);
 
     start = 0;
 

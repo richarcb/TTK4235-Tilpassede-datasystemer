@@ -8,7 +8,9 @@
 typedef enum{
     INIT,
     IDLE,
+    IDLE_INBETWEEN,
     MOVING,
+    MOVING_INBETWEEN,
     OPEN_DOOR,
     EMERGENCY,
 } state_c;
@@ -23,34 +25,30 @@ state_c state_current = INIT;
 
 void fsm() {
 current_floor = q_current_floor();
+printf("CURRENT FLOOR %d\n",current_floor);
 q_watch_buttons();
-
-
-
-
-
+q_update_lights();
 switch(state_current){
 
-case INIT:
-direction = DIRN_UP;
-current_floor = q_current_floor();
-prev_floor = q_prev_floor(current_floor,direction);
-while(elev_get_floor_sensor_signal() == -1) {
-  elev_set_motor_direction(direction);
-}
-printf("INIT\n");
+    case INIT:
+        printf("INIT\n");
+        direction = DIRN_UP;
+        current_floor = q_current_floor();
+        prev_floor = q_prev_floor(current_floor,direction);
 
-elev_set_motor_direction(DIRN_STOP);
+        while(elev_get_floor_sensor_signal() == -1) {
+              elev_set_motor_direction(direction);
+        }
 
-//printf("initialisezzz\n");
-prev_floor = current_floor - 1;
-state_current = IDLE;
+        
+        elev_set_motor_direction(DIRN_STOP);
+        state_current = IDLE; // setter state -> IDLE etter initialisering
 
 case IDLE:
 
-  current_floor_inbetween = q_current_floor_inbetween(current_floor);
-    if (elev_get_stop_signal()) {
+    current_floor_inbetween = q_current_floor_inbetween(current_floor);
 
+    if (elev_get_stop_signal()) {
       state_current = EMERGENCY;
       break;
     }
@@ -58,6 +56,7 @@ case IDLE:
 
 
     printf("IDLE\n");
+    elev_set_floor_indicator(current_floor);
         printf("Current floor inbetween IDLE %d\n",current_floor_inbetween);
     printf("Current floor i IDLE %d\n",current_floor);
     printf("Prev_floor i IDLE %d\n", prev_floor);
@@ -79,52 +78,45 @@ case IDLE:
   
       break;
 case MOVING:
-  current_floor = q_current_floor();
-
-if(elev_get_floor_sensor_signal == -1){
-  }
-
     if(current_floor != -1){
-  prev_floor = q_prev_floor(current_floor,direction);
-}
+        prev_floor = q_prev_floor(current_floor,direction);
+    }
 
+    elev_set_floor_indicator(current_floor_inbetween);
     q_printOrders();
     if (elev_get_stop_signal() == 1) {
-
-      state_current = EMERGENCY;
-      break;
+        state_current = EMERGENCY;
+        break;
     }
 
     printf("MOVING\n");
     printf("Next order: %d\n", q_check_orders(current_floor));
     q_printOrders();
-
-
-
-
+    
     if(q_check_orders(current_floor) < current_floor && current_floor != -1) {
       elev_set_motor_direction(DIRN_DOWN);
+      printf("SETTER RETNING NED\n");
       direction = -1;
     }
     if (q_check_orders(current_floor) > current_floor && current_floor !=-1) {
       elev_set_motor_direction(DIRN_UP);
+      printf("SETTER REGNING OPP\n");
       direction = 1;
     }
 
+    // setter retning i forhold til neste bestilling
+
     printf("Retning i MOVING: %d\n", direction);
-           printf("Current floor inbetween MOVING %d\n",current_floor_inbetween);
+    printf("Current floor inbetween MOVING %d\n",current_floor_inbetween);
     printf("Current floor i MOVING: %d\n", current_floor);
     printf("Previous floor i moving: %d\n", prev_floor);
     printf("retning før check if stop %d \n", direction);
-
-
-      if (q_check_if_stop(prev_floor, direction) == 1) {
+    if (q_check_if_stop(prev_floor, direction) == 1) {
           state_current = OPEN_DOOR;
-        }
-
-      else{
+          }
+    else{
           state_current = MOVING;
-        }
+          }
 
    /*if (q_change_dir(current_floor, direction) == DIRN_UP) {
       direction = DIRN_UP;
@@ -136,6 +128,31 @@ if(elev_get_floor_sensor_signal == -1){
     }*/
 
 
+
+    break;
+
+    case MOVING_INBETWEEN:
+
+    q_printOrders();
+    
+    if(q_check_orders(current_floor_inbetween) < current_floor_inbetween && current_floor_inbetween != -1) {
+      elev_set_motor_direction(DIRN_DOWN);
+      printf("SETTER RETNING NED\n");
+      direction = -1;
+    }
+    if (q_check_orders(current_floor_inbetween) > current_floor_inbetween && current_floor_inbetween !=-1) {
+      elev_set_motor_direction(DIRN_UP);
+      printf("SETTER REGNING OPP\n");
+      direction = 1;
+    }
+
+
+    if (q_check_if_stop(prev_floor, direction) == 1) {
+          state_current = OPEN_DOOR;
+          }
+    else{
+          state_current = MOVING;
+          }
 
     break;
 
@@ -153,14 +170,13 @@ case OPEN_DOOR:
 
     //current_floor = q_current_floor();
     //prev_floor = q_previous_floor(current_floor, direction);
-    elev_set_floor_indicator(current_floor);
-    q_clear_current_floor(current_floor, direction);
+    q_clear_current_floor(current_floor);
     elev_set_motor_direction(DIRN_STOP);
 //timer
     q_printOrders();
 
     while(timer() != 1){
-      elev_set_door_open_lamp(1);
+      elev_set_door_open_lamp(100);
       q_watch_buttons();
     }
     state_current = IDLE;
@@ -171,13 +187,40 @@ case OPEN_DOOR:
 
 case EMERGENCY:
     elev_set_motor_direction(DIRN_STOP);
-
-
+    q_clear_all_orders();
+    q_printOrders();
+    if(current_floor == -1){
+    state_current = IDLE_INBETWEEN;
+}
+else{
+  state_current = OPEN_DOOR;
+}
 //    printf("EMERGENCY\n");
     break;
 
-      }
-}
+case IDLE_INBETWEEN:
+printf("IDLE INBETWEEN\n");
+printf("current_floor_inbetween %d", current_floor_inbetween);
+q_watch_buttons();
+      if(q_check_orders(current_floor_inbetween)>= 0 || q_check_orders(current_floor_inbetween) == current_floor_inbetween){
+              current_floor = current_floor_inbetween;
+              state_current = MOVING_INBETWEEN;
+              printf("Setter state til MOVING\n");
+            } 
+            break;
+
+/*if((q_handle_order_inbetween(prev_floor, direction) == 1) || (q_handle_order_inbetween(prev_floor, direction) == -1))
+  {
+    direction = (q_handle_order_inbetween(prev_floor, direction));
+    state_current = MOVING;
+    break;
+  }*/
+
+
+
+     }//switch
+
+}//fsm
 
 
 

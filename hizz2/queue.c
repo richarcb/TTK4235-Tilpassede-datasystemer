@@ -41,6 +41,26 @@ void q_printOrders(){
 }
 
 
+int q_handle_order_inbetween(int prev_floor, int direction){
+      if(direction == DIRN_UP){
+      if(q_check_if_order_above(prev_floor)){
+          return DIRN_UP;
+      }
+      if(q_check_if_order_below(prev_floor)) {
+        return DIRN_DOWN;
+      }
+    }
+    if(direction == DIRN_DOWN){
+      if(q_check_if_order_below(prev_floor)){
+        return DIRN_DOWN;
+      }
+      if(q_check_if_order_above(prev_floor)){
+        return DIRN_UP;
+      }
+    }
+
+}
+
 void q_clear_all_orders() {
     for (int floor = 1; floor<4; floor++) {
       elev_set_button_lamp(1,floor,0);
@@ -116,7 +136,7 @@ int q_check_if_stop(int current_floor, int direction) {
     }
   }
 
-  if(orders[1][1] == 1){
+  /*if(orders[1][1] == 1){
       printf("vi skal stoppe i neste etasje %d\n",current_floor+1);
         if(elev_get_floor_sensor_signal() == 1){
       return 1;
@@ -127,7 +147,7 @@ int q_check_if_stop(int current_floor, int direction) {
         if(elev_get_floor_sensor_signal() == 2){
       return 1;
     }
-  }
+  }*/
 
 
 } 
@@ -171,7 +191,7 @@ int q_check_if_stop(int current_floor, int direction) {
       return 1;
     }
   }
-  if (orders[2][0] == 1) {
+ /* if (orders[2][0] == 1) {
       printf("vi skal stoppe i neste etasje %d\n",current_floor-1);
       if(elev_get_floor_sensor_signal() == 2){
       return 1;
@@ -182,7 +202,7 @@ int q_check_if_stop(int current_floor, int direction) {
       if(elev_get_floor_sensor_signal() == 1){
       return 1;
     }
-  }
+  }*/
   
   
 
@@ -191,12 +211,34 @@ int q_check_if_stop(int current_floor, int direction) {
 
 }
 
-void q_clear_current_floor(int floor, int direction){
+/*void q_queue_handler(int prev_floor, int direction, state_c state){
+  if (q_check_if_stop(prev_floor, direction) == 1) {
+          state = OPEN_DOOR;
+          }
+    else{
+          state = MOVING;
+          }
+}*/
 
-    orders[floor][0] = 0;
-    orders[floor][1] = 0;
-    orders[floor][2] = 0;
+void q_clear_current_floor(int floor){
+  orders[floor][0] = 0;
+  orders[floor][1] = 0;
+  orders[floor][2] = 0;
 
+  if(floor != 0){
+    elev_set_button_lamp(1,floor, 0);
+  }
+  if(floor != 3){
+    elev_set_button_lamp(0,floor, 0);
+  }
+  elev_set_button_lamp(2,floor, 0);
+
+  /*for(int button = 0; button<3; button++){
+    if(button != 1 && floor == 0 || button != 0 && floor == 3){
+    orders[floor][button] = 0;
+    elev_set_button_lamp(button,floor, 0);
+    }
+  }*/
 }
 
 
@@ -294,6 +336,19 @@ int q_check_down_orders(int current_floor) {
       return -1;
 }
 
+void q_set_direction(int current_floor, int direction){
+if(q_check_orders(current_floor) < current_floor && current_floor != -1) {
+      elev_set_motor_direction(DIRN_DOWN);
+      printf("SETTER RETNING NED\n");
+      direction = -1;
+    }
+    if (q_check_orders(current_floor) > current_floor && current_floor !=-1) {
+      elev_set_motor_direction(DIRN_UP);
+      printf("SETTER REGNING OPP\n");
+      direction = 1;
+    }
+  }
+
 int q_check_orders(int current_floor) {
 
   if(current_floor != floor){
@@ -353,10 +408,29 @@ int q_change_dir(int current_floor, int direction) {
 }
 
 
+void q_update_lights(){
+   for (int floor = 1; floor<4; floor++) { 
+      if(orders[floor][1] == 1){
+        elev_set_button_lamp(1,floor,1);
+      }
+    }
+    for (int floor = 0; floor<3; floor++) {
+      if(orders[floor][0] == 1){
+        elev_set_button_lamp(0,floor,1);
+       }
+    }
+    for (int floor = 0; floor<4; floor++) {
+      if(orders[floor][2] == 1){
+        elev_set_button_lamp(2,floor,1);
+      }
+    }
+}
 
 
 int q_current_floor(){
-  return elev_get_floor_sensor_signal();
+   { 
+      return elev_get_floor_sensor_signal();
+    }
 }
 
 int q_motor_direction(int current_floor, int prev_floor){

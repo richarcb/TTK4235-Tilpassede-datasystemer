@@ -26,13 +26,13 @@ elev_set_floor_indicator(2);
        fsm();
 
 
-       
+       /*
       if (elev_get_stop_signal()) {
            elev_set_motor_direction(DIRN_STOP);
            printf("stoppet\n");
            break;
        }
-
+*/
       
 
 
